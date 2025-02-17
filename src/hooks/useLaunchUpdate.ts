@@ -12,7 +12,7 @@ const useLaunchUpdate = (launch: Launch, type: UpdateType) => {
 
   const initialValue: string =
     type === 'payloadType'
-      ? (launch.rocket.second_stage.payloads[0].payload_type ?? '')
+      ? launch.rocket.second_stage.payloads[0].payload_type ?? ''
       : String(launch.rocket.cost_per_launch ?? '');
 
   const [value, setValue] = useState<string>(initialValue);
@@ -26,7 +26,7 @@ const useLaunchUpdate = (launch: Launch, type: UpdateType) => {
   useEffect(() => {
     const newInitialValue =
       type === 'payloadType'
-        ? (launch.rocket.second_stage.payloads[0].payload_type ?? '')
+        ? launch.rocket.second_stage.payloads[0].payload_type ?? ''
         : String(launch.rocket.cost_per_launch ?? '');
 
     setValue(newInitialValue);
@@ -51,7 +51,10 @@ const useLaunchUpdate = (launch: Launch, type: UpdateType) => {
   const updateLaunch = (newValue: string) => {
     setLaunches((prev: Launch[]) =>
       prev.map((l) => {
-        if (l.flight_number !== launch.flight_number) return l;
+
+        if (l.flight_number !== launch.flight_number) {
+          return l;
+        }
 
         if (type === 'payloadType') {
           return {
@@ -78,6 +81,34 @@ const useLaunchUpdate = (launch: Launch, type: UpdateType) => {
           };
         }
       }),
+    );
+  };
+
+  const updateLaunchWithApiResponse = (data: any) => {
+    setLaunches((prev: Launch[]) =>
+      prev.map((l) => {
+
+        if (l.flight_number !== launch.flight_number) {
+          return l;
+        }
+
+        const updatedRocket = { ...l.rocket };
+
+        if (type === 'payloadType') {
+          updatedRocket.second_stage = {
+            ...updatedRocket.second_stage,
+            payloads: updatedRocket.second_stage.payloads.map((p) =>
+              p.payload_id === data.payload_id
+                ? { ...p, payload_type: data.payload_type }
+                : p
+            ),
+          };
+        } else {
+          updatedRocket.cost_per_launch = data.cost_per_launch;
+        }
+
+        return { ...l, rocket: updatedRocket };
+      })
     );
   };
 
@@ -110,9 +141,22 @@ const useLaunchUpdate = (launch: Launch, type: UpdateType) => {
 
     await delay(2000);
 
-    update(identifier, newValue, () => setUndoChanges(true)).finally(() =>
-      setIsUpdating(false),
-    );
+    update(
+      identifier,
+      newValue,
+      () => {
+        setUndoChanges(true);
+      },
+      (data: any) => {
+        updateLaunchWithApiResponse(data);
+        updateLocalAndBroadcast(
+          type === 'payloadType'
+            ? data.payload_type
+            : String(data.cost_per_launch),
+          'UPDATE_LAUNCH',
+        );
+      },
+    ).finally(() => setIsUpdating(false));
   };
 
   const rollbackUpdate = () => {
