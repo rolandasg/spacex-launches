@@ -11,7 +11,6 @@ export const useUpdateLaunchAPI = (type: UpdateType) => {
     identifier: string,
     newValue: string,
     rollbackCallback: () => void,
-    successCallback: (data: any) => void,
   ) => {
     setIsLoading(true);
     setError(null);
@@ -40,9 +39,6 @@ export const useUpdateLaunchAPI = (type: UpdateType) => {
             : 'Failed to update cost',
         );
       }
-
-      const data = await response.json();
-      successCallback(data);
     } catch (err) {
       if (err instanceof Error) {
         setError(err);
